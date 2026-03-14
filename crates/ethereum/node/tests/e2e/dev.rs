@@ -1,6 +1,8 @@
-use alloy_eips::eip2718::Encodable2718;
+use alloy_consensus::{TxType};
+use alloy_eips::{eip2718::Encodable2718};
 use alloy_genesis::Genesis;
-use alloy_primitives::{b256, hex, Address};
+use alloy_primitives::{Address, B256, address, b256, hex};
+use alloy_rpc_types_eth::TransactionReceipt;
 use futures::StreamExt;
 use reth_chainspec::ChainSpec;
 use reth_node_api::{BlockBody, FullNodeComponents};
@@ -75,7 +77,39 @@ async fn can_run_dev_node_custom_attributes() -> eyre::Result<()> {
     Ok(())
 }
 
-async fn assert_chain_advances<N, AddOns>(node: &FullNode<N, AddOns>)
+#[tokio::test]
+async fn can_run_dev_node_mined_transaction_has_receipt() -> eyre::Result<()> {
+    reth_tracing::init_test_tracing();
+    let runtime = Runtime::test();
+
+    let node_config = NodeConfig::test()
+        .with_chain(custom_chain())
+        .with_dev(DevArgs { dev: true, ..Default::default() });
+    let NodeHandle { node, .. } = NodeBuilder::new(node_config.clone())
+        .testing_node(runtime.clone())
+        .with_types_and_provider::<EthereumNode, BlockchainProvider<_>>()
+        .with_components(EthereumNode::components())
+        .with_add_ons(EthereumAddOns::default())
+        .launch_with_debug_capabilities()
+        .await?;
+
+    let hash = assert_chain_advances(&node).await;    
+
+    let receipt: TransactionReceipt  = EthApiServer::transaction_receipt(node.rpc_registry.eth_api(), hash).await.unwrap().unwrap();
+    
+    let from = receipt.from;
+    assert_eq!(from, address!("0x6Be02d1d3665660d22FF9624b7BE0551ee1Ac91b"));
+    let nonce = EthApiServer::transaction_count(node.rpc_registry.eth_api(), from, Default::default()).await.unwrap();
+    assert_eq!(receipt.inner.tx_type(), TxType::Eip1559);
+    assert_eq!(nonce, 1);
+    assert_eq!(receipt.transaction_hash, hash);
+    assert_eq!(receipt.block_number, Some(1));
+    assert_eq!(receipt.transaction_index, Some(0));
+
+    Ok(())
+}
+
+async fn assert_chain_advances<N, AddOns>(node: &FullNode<N, AddOns>) -> B256
 where
     N: FullNodeComponents<Provider: CanonStateSubscriptions>,
     AddOns: RethRpcAddOns<N, EthApi: EthTransactions>,
@@ -101,6 +135,8 @@ where
     let tx = &head.tip().body().transactions()[0];
     assert_eq!(tx.trie_hash(), hash);
     println!("mined transaction: {hash}");
+
+    hash
 }
 
 fn custom_chain() -> Arc<ChainSpec> {
