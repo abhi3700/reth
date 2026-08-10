@@ -11,6 +11,7 @@ mod prestate;
 mod rpc;
 mod selfdestruct;
 mod simulate;
+mod tx_pool_propagation;
 mod utils;
 
 const fn main() {}
