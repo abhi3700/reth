@@ -9490,6 +9490,7 @@ dependencies = [
  "alloy-rpc-types-eth",
  "alloy-rpc-types-trace",
  "alloy-signer",
+ "alloy-signer-local",
  "alloy-sol-types",
  "enr",
  "ethereum_ssz",
