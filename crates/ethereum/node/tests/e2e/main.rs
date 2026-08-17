@@ -10,6 +10,7 @@ mod exercise_2a_tx_replacement;
 mod exercise_2b_tx_replacement_custom_bump;
 mod exercise_2c_tx_replacement_diff_config;
 mod exercise_3a_pool_nonce_gap;
+mod exercise_4a_contract_lifecycle;
 mod invalid_payload;
 mod p2p;
 mod pool;
